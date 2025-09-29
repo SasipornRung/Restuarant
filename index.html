@@ -3,97 +3,300 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wongnai Analytics</title>
+    <title>Wongnai Analytics Platform</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap');
+        
+        body {
+            font-family: 'Prompt', sans-serif;
+            background-color: #f5f7fa;
+        }
+
         .view-toggle {
+            background: #fff;
+            border-radius: 20px;
+            padding: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             position: fixed;
             top: 20px;
             right: 20px;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            padding: 4px;
             z-index: 1000;
             display: flex;
             gap: 4px;
         }
-        
+
         .view-toggle button {
             padding: 8px 16px;
             border-radius: 16px;
+            border: none;
             font-size: 14px;
             transition: all 0.3s ease;
         }
-        
+
         .view-toggle button.active {
             background: #FF642F;
             color: white;
-        }
-        
-        .view-toggle button:not(.active) {
-            background: transparent;
-            color: #666;
-        }
-        
-        .content-section {
-            display: none;
-        }
-        
-        .content-section.active {
-            display: block;
         }
 
         .insight-card {
             background: white;
             border-radius: 12px;
             padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
             margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .nlp-tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin: 4px;
+        }
+
+        .nlp-positive {
+            background: #e6f4ea;
+            color: #1e7e34;
+        }
+
+        .nlp-negative {
+            background: #fce8e8;
+            color: #c62828;
+        }
+
+        .time-slot {
+            padding: 8px;
+            border-radius: 8px;
+            margin: 4px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .time-slot:nth-child(odd) {
+            background: #f8f9fa;
+        }
+
+        .trend-up::after {
+            content: "↑";
+            color: #28a745;
+            margin-left: 4px;
+        }
+
+        .trend-down::after {
+            content: "↓";
+            color: #dc3545;
+            margin-left: 4px;
         }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="p-6">
     <!-- View Toggle -->
     <div class="view-toggle">
-        <button id="customerBtn" class="active" onclick="switchView('customer')">
+        <button onclick="switchView('customer')" class="active" id="customerBtn">
             👥 มุมมองลูกค้า
         </button>
-        <button id="ownerBtn" onclick="switchView('owner')">
+        <button onclick="switchView('owner')" id="ownerBtn">
             🏪 มุมมองร้านค้า
         </button>
     </div>
 
-    <div class="container mx-auto px-4 py-8">
+    <div class="max-w-6xl mx-auto mt-16">
         <!-- Customer View -->
-        <div id="customerView" class="content-section active">
-            <h1 class="text-3xl font-bold mb-8">ร้านอาหารครัวคุณหมี</h1>
+        <div id="customerView" class="space-y-6">
+            <h1 class="text-3xl font-bold mb-6">ร้านอาหารครัวคุณหมี</h1>
             
-            <!-- Content sections here -->
+            <div class="grid md:grid-cols-2 gap-6">
+                <!-- Positive Reviews -->
+                <div class="insight-card">
+                    <h3 class="text-xl font-semibold mb-4">🌟 รีวิวเชิงบวก</h3>
+                    <div class="space-y-3" id="positiveReviews"></div>
+                </div>
+
+                <!-- Improvement Points -->
+                <div class="insight-card">
+                    <h3 class="text-xl font-semibold mb-4">📝 ข้อควรปรับปรุง</h3>
+                    <div class="space-y-3" id="negativeReviews"></div>
+                </div>
+            </div>
+
+            <!-- Rating Chart -->
+            <div class="insight-card">
+                <h3 class="text-xl font-semibold mb-4">📊 คะแนนรีวิว</h3>
+                <canvas id="ratingChart"></canvas>
+            </div>
         </div>
 
         <!-- Owner View -->
-        <div id="ownerView" class="content-section">
-            <h1 class="text-3xl font-bold mb-8">ระบบจัดการร้าน</h1>
-            
-            <!-- Content sections here -->
+        <div id="ownerView" class="space-y-6 hidden">
+            <h1 class="text-3xl font-bold mb-6">ระบบวิเคราะห์ร้าน</h1>
+
+            <!-- NLP Analysis -->
+            <div class="insight-card">
+                <h3 class="text-xl font-semibold mb-4">🤖 วิเคราะห์รีวิวด้วย AI</h3>
+                <div id="nlpAnalysis" class="space-y-4">
+                    <div class="p-4 bg-gray-50 rounded-lg">
+                        <h4 class="font-medium mb-2">ความคิดเห็นเกี่ยวกับราคา:</h4>
+                        <div class="space-x-2">
+                            <span class="nlp-tag nlp-positive">ราคาสมเหตุสมผล (65%)</span>
+                            <span class="nlp-tag nlp-negative">ราคาสูงเกินไป (35%)</span>
+                        </div>
+                        <p class="mt-2 text-sm text-gray-600">
+                            💡 แนะนำ: ควรพิจารณาปรับราคาเมนูหลักลง 5-10% เพื่อเพิ่มความพึงพอใจลูกค้า
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Popular Times -->
+            <div class="insight-card">
+                <h3 class="text-xl font-semibold mb-4">⏰ ช่วงเวลายอดนิยม</h3>
+                <div id="timeAnalysis"></div>
+            </div>
+
+            <!-- Menu Analysis -->
+            <div class="insight-card">
+                <h3 class="text-xl font-semibold mb-4">📈 วิเคราะห์เมนูขายดี</h3>
+                <canvas id="menuChart"></canvas>
+            </div>
         </div>
     </div>
 
     <script>
+        // View Switching
         function switchView(view) {
-            // Update buttons
-            document.getElementById('customerBtn').classList.toggle('active', view === 'customer');
-            document.getElementById('ownerBtn').classList.toggle('active', view === 'owner');
-            
-            // Update content sections
-            document.getElementById('customerView').classList.toggle('active', view === 'customer');
-            document.getElementById('ownerView').classList.toggle('active', view === 'owner');
+            const customerView = document.getElementById('customerView');
+            const ownerView = document.getElementById('ownerView');
+            const customerBtn = document.getElementById('customerBtn');
+            const ownerBtn = document.getElementById('ownerBtn');
+
+            if (view === 'customer') {
+                customerView.classList.remove('hidden');
+                ownerView.classList.add('hidden');
+                customerBtn.classList.add('active');
+                ownerBtn.classList.remove('active');
+            } else {
+                customerView.classList.add('hidden');
+                ownerView.classList.remove('hidden');
+                customerBtn.classList.remove('active');
+                ownerBtn.classList.add('active');
+            }
         }
-        
-        // Initialize views
-        document.addEventListener('DOMContentLoaded', () => {
-            switchView('customer');
+
+        // Mock Data
+        const reviewData = {
+            positive: [
+                { text: "น้ำซุปเข้มข้น อร่อยมาก", count: 45 },
+                { text: "พนักงานบริการดีเยี่ยม", count: 38 },
+                { text: "บรรยากาศร้านดี น่านั่ง", count: 32 },
+                { text: "ราคาคุ้มค่ากับคุณภาพ", count: 28 },
+                { text: "รสชาติดี ถูกปาก", count: 25 }
+            ],
+            negative: [
+                { text: "ที่จอดรถน้อย", count: 15 },
+                { text: "รอคิวนาน ช่วงเที่ยง", count: 12 },
+                { text: "เมนูขาดบ่อย", count: 10 },
+                { text: "โต๊ะไม่พอ", count: 8 },
+                { text: "แอร์ไม่เย็น", count: 6 }
+            ]
+        };
+
+        const timeData = [
+            { time: "11:00-13:00", status: "คนแน่นมาก", items: ["ข้าวกะเพรา", "ต้มยำ"] },
+            { time: "14:00-16:00", status: "ปานกลาง", items: ["ของหวาน", "กาแฟ"] },
+            { time: "17:00-19:00", status: "คนแน่น", items: ["สเต็ก", "สปาเก็ตตี้"] },
+            { time: "19:00-21:00", status: "ปานกลาง", items: ["สลัด", "เครื่องดื่ม"] }
+        ];
+
+        // Populate Reviews
+        function populateReviews() {
+            const positiveContainer = document.getElementById('positiveReviews');
+            const negativeContainer = document.getElementById('negativeReviews');
+
+            positiveContainer.innerHTML = reviewData.positive.map(review => `
+                <div class="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                    <span>${review.text}</span>
+                    <span class="bg-green-200 text-green-800 px-2 py-1 rounded-full text-sm">
+                        ${review.count}x
+                    </span>
+                </div>
+            `).join('');
+
+            negativeContainer.innerHTML = reviewData.negative.map(review => `
+                <div class="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                    <span>${review.text}</span>
+                    <span class="bg-red-200 text-red-800 px-2 py-1 rounded-full text-sm">
+                        ${review.count}x
+                    </span>
+                </div>
+            `).join('');
+        }
+
+        // Populate Time Analysis
+        function populateTimeAnalysis() {
+            const container = document.getElementById('timeAnalysis');
+            container.innerHTML = timeData.map(slot => `
+                <div class="time-slot">
+                    <div>
+                        <strong>${slot.time}</strong>
+                        <span class="ml-2 text-gray-600">${slot.status}</span>
+                    </div>
+                    <div class="text-sm text-gray-500">
+                        เมนูยอดนิยม: ${slot.items.join(", ")}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Initialize Charts
+        function initCharts() {
+            // Rating Chart
+            const ratingCtx = document.getElementById('ratingChart').getContext('2d');
+            new Chart(ratingCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['⭐', '⭐⭐', '⭐⭐⭐', '⭐⭐⭐⭐', '⭐⭐⭐⭐⭐'],
+                    datasets: [{
+                        label: 'จำนวนรีวิว',
+                        data: [5, 8, 25, 45, 61],
+                        backgroundColor: '#FF642F'
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+
+            // Menu Chart
+            const menuCtx = document.getElementById('menuChart').getContext('2d');
+            new Chart(menuCtx, {
+                type: 'line',
+                data: {
+                    labels: ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัส', 'ศุกร์', 'เสาร์', 'อาทิตย์'],
+                    datasets: [{
+                        label: 'ข้าวกะเพรา',
+                        data: [30, 35, 45, 40, 50, 45, 40],
+                        borderColor: '#FF642F',
+                        fill: false
+                    }, {
+                        label: 'ต้มยำ',
+                        data: [25, 30, 35, 45, 40, 35, 30],
+                        borderColor: '#28a745',
+                        fill: false
+                    }]
+                }
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            populateReviews();
+            populateTimeAnalysis();
+            initCharts();
         });
     </script>
 </body>
